@@ -1,0 +1,16 @@
+# Define the data disk
+resource "azurerm_managed_disk" "example" {
+  name                 = "example-disk"
+  location             = "East US"  # Replace with your location
+  resource_group_name  = "your_resource_group_name"  # Replace with your resource group
+  disk_size_gb        = 128
+  sku                 = "Standard_LRS"  # Choose the appropriate SKU
+}
+
+# Attach the data disk to the existing VM
+resource "azurerm_virtual_machine_data_disk_attachment" "example" {
+  virtual_machine_id = azurerm_virtual_machine.your_vm.id  # Reference to your existing VM
+  managed_disk_id    = azurerm_managed_disk.example.id
+  lun                = 0  # Logical Unit Number, adjust if necessary
+  caching            = "ReadWrite"  # Adjust caching if needed
+}
