@@ -1,0 +1,26 @@
+# Assuming you have the existing NAT Gateway and want to associate it with a new public IP
+resource "azurerm_public_ip" "new_public_ip" {
+  name                = "myNewPublicIP"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+
+  allocation_method = "Static"
+  sku              = "Standard"
+}
+
+resource "azurerm_nat_gateway" "existing_nat_gateway" {
+  # Reference your existing NAT Gateway here
+  name                = "myExistingNatGateway"
+  resource_group_name = azurerm_resource_group.example.name
+}
+
+resource "azurerm_subnet_nat_gateway_association" "example" {
+  subnet_id      = azurerm_subnet.existing_subnet.id
+  nat_gateway_id = azurerm_nat_gateway.existing_nat_gateway.id
+}
+
+# Optionally update the NAT Gateway to use the new Public IP
+resource "azurerm_nat_gateway_public_ip_association" "example" {
+  nat_gateway_id     = azurerm_nat_gateway.existing_nat_gateway.id
+  public_ip_address_id = azurerm_public_ip.new_public_ip.id
+}
