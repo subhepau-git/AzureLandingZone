@@ -1,0 +1,102 @@
+Here’s the Terraform code to deploy Microsoft Entra Domain Services (Azure AD DS) in your **identity subscription**, assuming you already have an existing VNET and subnet where you want to deploy Azure AD DS.
+
+### `main.tf`
+```hcl
+provider "azurerm" {
+  features {}
+  subscription_id = var.identity_subscription_id
+}
+
+# Resource Group for Azure AD DS
+resource "azurerm_resource_group" "aadds_rg" {
+  name     = var.resource_group_name
+  location = var.location
+}
+
+# Azure Entra Domain Services (Azure AD DS) deployment
+resource "azurerm_active_directory_domain_service" "aadds" {
+  name                = var.domain_service_name
+  resource_group_name = azurerm_resource_group.aadds_rg.name
+  location            = azurerm_resource_group.aadds_rg.location
+  domain_name         = var.domain_name
+
+  # Link to the existing Virtual Network and Subnet
+  replica_sets {
+    location  = var.location
+    subnet_id = var.subnet_id   # Existing subnet where Azure AD DS will be deployed
+  }
+
+  # Optional: Secure LDAP
+  enable_secure_ldap         = true
+  secure_ldap_external_access = false
+
+  # Optional: Enable synchronization with Azure AD
+  sync_enabled = true
+}
+
+# Output the DNS IP addresses to be used in other VNETs
+output "aadds_dns_ips" {
+  value = azurerm_active_directory_domain_service.aadds.dns_ip_addresses
+}
+```
+
+### `variables.tf`
+Define the required variables that will be used in the `main.tf` file:
+
+```hcl
+variable "identity_subscription_id" {
+  type        = string
+  description = "The Subscription ID where Azure AD DS will be deployed (Identity Subscription)"
+}
+
+variable "resource_group_name" {
+  type        = string
+  description = "The Resource Group Name where Azure AD DS will be created"
+}
+
+variable "location" {
+  type        = string
+  description = "The location where Azure AD DS will be deployed"
+}
+
+variable "domain_service_name" {
+  type        = string
+  description = "The name for the Azure AD DS service"
+}
+
+variable "domain_name" {
+  type        = string
+  description = "The DNS domain name for Azure AD DS (e.g., mydomain.com)"
+}
+
+variable "subnet_id" {
+  type        = string
+  description = "The subnet ID where Azure AD DS will be deployed"
+}
+```
+
+### `terraform.tfvars`
+Define the values for the variables you’ll be using in the Terraform configuration:
+
+```hcl
+identity_subscription_id = "your-identity-subscription-id"
+resource_group_name      = "aadds-resource-group"
+location                 = "East US" # Or your preferred Azure region
+domain_service_name      = "my-domain-service"
+domain_name              = "mydomain.com"
+subnet_id                = "/subscriptions/your-subscription-id/resourceGroups/your-rg/providers/Microsoft.Network/virtualNetworks/your-vnet/subnets/your-subnet"
+```
+
+### Instructions:
+1. Save the above `main.tf`, `variables.tf`, and `terraform.tfvars` files.
+2. Run the following commands to apply the Terraform configuration:
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+This will deploy Microsoft Entra Domain Services (Azure AD DS) in your **identity subscription** and output the DNS IP addresses that you can use to configure other VNETs across your environment for VM domain joining.
+
+Let me know if you need further assistance with this setup!
