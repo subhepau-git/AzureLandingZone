@@ -1,0 +1,1 @@
+SELECT * FROM Win32_ComputerSystem WHERE Name = 'VM1' OR Name = 'VM2'
