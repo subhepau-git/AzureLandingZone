@@ -1,0 +1,81 @@
+# Provider configuration
+provider "azurerm" {
+  features {}
+}
+
+# Variables for reusability
+variable "resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
+}
+
+variable "location" {
+  description = "Azure location for resources"
+  type        = string
+}
+
+variable "namespace_name" {
+  description = "Name of the Event Hub namespace"
+  type        = string
+}
+
+variable "eventhub_name" {
+  description = "Name of the Event Hub"
+  type        = string
+}
+
+variable "storage_account_name" {
+  description = "Name of the storage account"
+  type        = string
+}
+
+# Resource Group
+resource "azurerm_resource_group" "rg" {
+  name     = var.resource_group_name
+  location = var.location
+}
+
+# Event Hub Namespace
+resource "azurerm_eventhub_namespace" "eventhub_ns" {
+  name                = var.namespace_name
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "Standard"
+}
+
+# Event Hub
+resource "azurerm_eventhub" "eventhub" {
+  name                = var.eventhub_name
+  resource_group_name = azurerm_resource_group.rg.name
+  namespace_name      = azurerm_eventhub_namespace.eventhub_ns.name
+  partition_count     = 4
+  message_retention   = 7 # retention period in days
+}
+
+# Consumer Group
+resource "azurerm_eventhub_consumer_group" "consumer_group" {
+  name                = "cortex-xsiam-consumer-group"
+  namespace_name      = azurerm_eventhub_namespace.eventhub_ns.name
+  eventhub_name       = azurerm_eventhub.eventhub.name
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+# Storage Account for checkpointing
+resource "azurerm_storage_account" "storage_account" {
+  name                     = var.storage_account_name
+  resource_group_name       = azurerm_resource_group.rg.name
+  location                  = var.location
+  account_tier              = "Standard"
+  account_replication_type  = "LRS"
+  enable_https_traffic_only = true
+}
+
+# Storage Account Access Key Output
+output "storage_account_connection_string" {
+  value = azurerm_storage_account.storage_account.primary_connection_string
+}
+
+# Event Hub Connection String
+output "eventhub_connection_string" {
+  value = azurerm_eventhub_namespace.eventhub_ns.default_primary_connection_string
+}
