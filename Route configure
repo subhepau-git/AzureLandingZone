@@ -1,0 +1,88 @@
+Here’s a low-level, step-by-step technical guide to configure routing for internet-bound traffic through the Zscaler Cloud Connector using Azure Virtual WAN (vWAN) and Virtual Hub (vHub). This approach eliminates the need for individual subnet route tables, as routing will be centralized in the vHub.
+
+---
+
+### Step-by-Step Guide to Route Traffic through Zscaler Cloud Connector
+
+### Step 1: Verify Prerequisites
+1. **Zscaler Cloud Connector**:
+   - Ensure Zscaler Cloud Connector is deployed and configured in the connectivity subscription.
+   - Obtain the IP address (or load balancer IP) of the Zscaler Cloud Connector. This will serve as the next hop for internet-bound traffic.
+
+2. **Azure Virtual WAN (vWAN) and vHub**:
+   - Confirm that Azure Virtual WAN and a Virtual Hub (vHub) are already created in the connectivity subscription.
+
+3. **Connected VNETs**:
+   - Verify that the four VNETs (identity, management, shared, and backup) are connected to the vHub in the connectivity subscription.
+
+---
+
+### Step 2: Create Custom Route Tables in vHub
+
+1. **Navigate to vHub in Azure Portal**:
+   - Open the Azure portal and go to **Virtual WAN**.
+   - Locate and select your **Virtual WAN** instance.
+   - In the Virtual WAN overview, select **Hubs**, then choose your **vHub**.
+
+2. **Create Route Tables**:
+   - In the vHub settings, select **Route Tables** under the **Settings** section.
+   - Click **+ Add** to create the first custom route table.
+
+3. **Configure the Route Tables**:
+   - Create **two separate route tables**:
+     - **Route Table 1: SpokesToZscaler**
+     - **Route Table 2: ZscalerToSpokes**
+
+4. **Add Route to SpokesToZscaler Route Table**:
+   - In **Route Tables**, select **SpokesToZscaler**.
+   - Choose **Routes** > **+ Add** to configure a route.
+     - **Route Name**: `Internet via Zscaler`
+     - **Destination**: `0.0.0.0/0` (This captures all internet-bound traffic).
+     - **Next Hop Type**: IP
+     - **Next Hop IP**: Enter the IP address of the Zscaler Cloud Connector.
+
+5. **Add Route to ZscalerToSpokes Route Table** (if needed):
+   - The `ZscalerToSpokes` route table will be used for return traffic from Zscaler back to the VNETs.
+   - If your setup requires specific return routes, add them here. In most cases, this table may not need additional routes if Zscaler automatically forwards return traffic back to the vHub.
+
+---
+
+### Step 3: Attach Route Tables to vHub Connections
+
+1. **Go to Connections in vHub**:
+   - Inside the **vHub**, go to the **Connections** tab. Here, you should see the list of all connected VNETs (identity, management, shared, and backup).
+
+2. **Associate `SpokesToZscaler` Route Table with Each VNET Connection**:
+   - For each connection to your VNETs (identity, management, shared, backup):
+     - Select the connection and click **Edit**.
+     - **Associate** the `SpokesToZscaler` route table with each connection. This will direct outgoing traffic to Zscaler.
+
+3. **Propagate Each VNET Connection to `ZscalerToSpokes` Route Table**:
+   - Still in the **Edit Connection** settings, go to the **Propagate Route Tables** section.
+   - **Propagate** each connection to `ZscalerToSpokes`. This ensures any return traffic from Zscaler is directed back to the VNETs.
+
+4. **Configure Zscaler Connector Connection**:
+   - In the vHub, locate the **Zscaler Cloud Connector connection**.
+   - **Associate** the Zscaler connection with the `ZscalerToSpokes` route table.
+   - **Propagate** the Zscaler connection to `SpokesToZscaler`.
+
+---
+
+### Step 4: Validate Routing
+
+1. **Use Network Watcher to Verify Routes**:
+   - In Azure, go to **Network Watcher** > **Effective Routes**.
+   - Select a VM in one of the VNETs (identity, management, shared, or backup) and verify that the effective route for `0.0.0.0/0` is directed to the Zscaler Cloud Connector IP.
+
+2. **Monitor Zscaler Logs**:
+   - Access the Zscaler portal and verify that traffic from Azure VNETs is visible in the Zscaler logs.
+
+3. **Test Connectivity**:
+   - Run ping tests or traceroutes from VMs in each VNET to an external IP (such as `8.8.8.8`) to confirm that internet-bound traffic flows through Zscaler.
+
+---
+
+### Summary
+This configuration allows centralized management of internet-bound traffic routing through the Zscaler Cloud Connector without the need for individual route tables on each subnet. All route management is handled within the vHub through the `SpokesToZscaler` and `ZscalerToSpokes` route tables.
+
+Applying these settings in a staging environment first, if possible, is recommended to validate configurations and ensure smooth operation before applying them in production. Let me know if you need more details on any specific step!
