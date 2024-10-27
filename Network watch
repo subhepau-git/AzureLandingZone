@@ -1,0 +1,59 @@
+To verify traffic routing through Network Watcher, you can use the **Effective Routes** and **Connection Monitor** tools within Network Watcher. Here’s a step-by-step guide for checking if traffic is following the correct path through the Zscaler Cloud Connector.
+
+---
+
+### Step 1: Verify Effective Routes in Network Watcher
+The **Effective Routes** tool helps verify that the route configuration is correctly set up for each VM’s network interface (NIC).
+
+1. **Go to Network Watcher**:
+   - In the Azure Portal, navigate to **Network Watcher**.
+   - Select **Effective Routes** under **Network Diagnostic Tools**.
+
+2. **Select the Target VM**:
+   - Choose the **Subscription** and **Region** where your VM is located.
+   - Under **Network Interface**, select the NIC of the VM from one of your VNETs (e.g., identity, management, shared, or backup).
+
+3. **View the Effective Route Table**:
+   - Network Watcher will display the effective routes for the selected NIC.
+   - Look for the route with the **Destination** `0.0.0.0/0` (representing internet-bound traffic).
+   - **Next Hop**: Ensure that this route directs traffic to the **Next Hop IP** associated with your Zscaler Cloud Connector (usually the IP address of the Zscaler load balancer or endpoint). 
+
+   This confirms that internet-bound traffic from this VM is routed through the Zscaler Cloud Connector.
+
+---
+
+### Step 2: Use Connection Monitor in Network Watcher (Optional)
+**Connection Monitor** allows you to actively monitor traffic paths between VMs and external destinations, such as public IPs.
+
+1. **Set Up Connection Monitor**:
+   - In Network Watcher, go to **Connection Monitor**.
+   - Click on **+ Add** to create a new Connection Monitor instance.
+
+2. **Configure the Connection**:
+   - **Source**:
+     - Select a VM in one of your VNETs as the source (e.g., a VM in the identity or management VNET).
+   - **Destination**:
+     - Set an external IP (e.g., `8.8.8.8` or any internet address) as the destination to check if traffic is flowing through Zscaler.
+   - **Protocol**: Choose **TCP** or **ICMP** for the test.
+
+3. **Review Monitoring Results**:
+   - Once created, Connection Monitor will periodically test and log the connection.
+   - Check for the **latency**, **hops**, and **Next Hop** information to ensure that traffic to external IPs is routed through the Zscaler IP as expected.
+
+---
+
+### Step 3: Review Network Security Group (NSG) Flow Logs (if enabled)
+If NSG flow logs are enabled, they can provide an additional layer of verification by showing inbound and outbound traffic flows.
+
+1. **Enable NSG Flow Logs**:
+   - In the Network Watcher settings, go to **NSG Flow Logs** and enable it for the NSG associated with the subnet where the VM resides.
+   - Set **Storage Account** and **Log Analytics Workspace** where logs should be stored.
+
+2. **Analyze Flow Logs**:
+   - After a few minutes, check the flow logs in the storage account or Log Analytics.
+   - Look for outbound traffic from your VM with a destination of `0.0.0.0/0`, and verify that the logs indicate traffic is routed to Zscaler’s IP.
+
+---
+
+### Summary
+Using **Effective Routes** confirms that route tables are applied correctly, while **Connection Monitor** actively verifies the traffic path. Combined, these tools ensure that internet-bound traffic is routed as intended through Zscaler. Let me know if you need more clarification on any specific step within Network Watcher!
