@@ -1,0 +1,71 @@
+To route only the **internet-bound traffic from the management VNET** through the Zscaler Cloud Connector without affecting the other VNETs, you can use **Route Table Associations and Propagations selectively in the vHub**. Here’s how to configure this so that the custom route applies only to the management VNET, while other VNETs remain unaffected.
+
+---
+
+### Step-by-Step Solution for Routing Only Management VNET Traffic via Zscaler
+
+#### Step 1: Configure Route Tables in vHub
+
+1. **Navigate to vHub**:
+   - In the **Azure Portal**, go to **Virtual WAN**.
+   - Select your **Virtual WAN instance** > **Hubs** > Choose your **vHub**.
+
+2. **Create Route Tables**:
+   - Go to **Route Tables** under **Settings**.
+   - Click **+ Add** to create two custom route tables:
+     - **Route Table 1**: `MgmtToZscaler` (for routing only management VNET internet-bound traffic to Zscaler).
+     - **Route Table 2**: `ZscalerToMgmt` (for handling return traffic from Zscaler back to the management VNET).
+
+#### Step 2: Define Routes in `MgmtToZscaler` Route Table
+
+1. **Add Route for Internet-Bound Traffic**:
+   - In the **MgmtToZscaler** route table, click on **Routes** > **+ Add**.
+     - **Route Name**: `Internet via Zscaler`
+     - **Destination**: `0.0.0.0/0` (all internet-bound traffic)
+     - **Next Hop Type**: IP
+     - **Next Hop IP**: Zscaler Cloud Connector’s IP (e.g., `10.10.10.10`)
+
+2. **No Additional Routes Needed for Other VNETs**:
+   - Skip adding this route table (`MgmtToZscaler`) to the other VNETs. This route will only be used for the management VNET, so no changes are made to the route tables for identity, shared, or backup VNETs.
+
+#### Step 3: Configure Route Table Associations and Propagations for VNET Connections in vHub
+
+1. **Go to Connections in vHub**:
+   - Inside the **vHub**, go to **Connections**.
+
+2. **Associate Only Management VNET with `MgmtToZscaler` Route Table**:
+   - Find the connection for the **management VNET** and select **Edit**.
+   - In **Route Table Association**, associate the **MgmtToZscaler** route table to direct internet-bound traffic from the management VNET to Zscaler.
+   - In **Route Table Propagation**, select `ZscalerToMgmt` to ensure return traffic from Zscaler reaches the management VNET.
+
+3. **Leave Other VNET Connections Unchanged**:
+   - Do not associate or propagate the `MgmtToZscaler` or `ZscalerToMgmt` route tables to the other VNETs (identity, shared, backup).
+   - This ensures that the identity, shared, and backup VNETs are unaffected by this routing configuration.
+
+4. **Configure Zscaler Connector Connection**:
+   - For the **Zscaler Cloud Connector connection** in the vHub:
+     - **Associate** it with `ZscalerToMgmt`.
+     - **Propagate** it to `MgmtToZscaler`.
+
+---
+
+### Step 4: Validation and Testing
+
+1. **Use Network Watcher to Check Effective Routes**:
+   - In **Network Watcher** > **Effective Routes**, select the NIC of a VM in the **management VNET**.
+   - Verify that internet-bound traffic (`0.0.0.0/0`) points to the Zscaler Cloud Connector’s IP in the route table.
+   - Check the NICs of VMs in other VNETs (identity, shared, backup) to confirm that their routes are unaffected and do not direct internet-bound traffic to Zscaler.
+
+2. **Test Connectivity**:
+   - For the management VNET:
+     - Try connecting to an external IP (e.g., `8.8.8.8`) and confirm it routes through Zscaler.
+   - For other VNETs:
+     - Verify that internet access remains direct or as previously configured, without going through Zscaler.
+
+---
+
+### Summary
+
+This setup routes only the internet-bound traffic from the management VNET through the Zscaler Cloud Connector by using specific route table associations and propagations within the vHub. Other VNETs remain unaffected as they do not have the `MgmtToZscaler` or `ZscalerToMgmt` route tables associated with them. 
+
+This should resolve the issue you’re facing. Let me know if you need further clarification on any step!
