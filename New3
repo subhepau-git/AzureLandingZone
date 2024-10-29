@@ -1,0 +1,112 @@
+Microsoft recently updated Azure Virtual WAN and Virtual Hub (vHub) settings, which now offer more streamlined route table management and route associations. Here’s an updated guide tailored to the new Virtual WAN (vWAN) and Virtual Hub settings:
+
+---
+
+### Goal
+1. **Route only internet-bound traffic** from the **management VNET** through the Zscaler Cloud Connector.
+2. **Ensure traffic to Azure services (like Azure Bastion)** bypasses Zscaler to maintain connectivity.
+
+---
+
+### Updated Step-by-Step Guide
+
+### Step 1: Download Azure IP Ranges for North Europe
+
+1. **Download Azure IP Ranges and Service Tags File**:
+   - Go to the [Azure IP Ranges and Service Tags – Public Cloud](https://www.microsoft.com/en-us/download/details.aspx?id=56519) page and download the latest JSON file.
+  
+2. **Identify IP Ranges for North Europe**:
+   - Open the JSON file in a text editor.
+   - Search for `"name": "AzureCloud.northeurope"` to locate the IP ranges for Azure services in the North Europe region.
+   - Additionally, look for **AzureBastion** IP ranges specific to North Europe.
+
+3. **Sample IP Ranges** (verify these as IP ranges may change):
+   - For **AzureCloud North Europe**: 
+     - `40.113.64.0/18`
+     - `52.138.128.0/17`
+   - For **AzureBastion North Europe**: Refer to the file for specific ranges under the **AzureBastion** tag.
+
+---
+
+### Step 2: Configure Route Tables in Azure vHub
+
+1. **Navigate to the Virtual WAN and vHub in Azure Portal**:
+   - Go to **Virtual WAN** in the Azure portal.
+   - Select your **Virtual WAN** instance, then select **Hubs** and click on your **vHub**.
+
+2. **Create Route Tables in the vHub**:
+   - Under **Settings**, go to **Route Tables**.
+   - Click **+ Add Route Table** and create two route tables:
+     - **Route Table 1**: `MgmtToZscaler` (routes only management VNET internet-bound traffic to Zscaler)
+     - **Route Table 2**: `ZscalerToMgmt` (for handling return traffic from Zscaler back to the management VNET)
+
+---
+
+### Step 3: Define Routes in `MgmtToZscaler` Route Table
+
+1. **Route for Internet-Bound Traffic**:
+   - In the **MgmtToZscaler** route table, add a route to direct only internet-bound traffic through Zscaler.
+     - **Route Name**: `Internet via Zscaler`
+     - **Destination**: `0.0.0.0/0` (captures all internet-bound traffic)
+     - **Next Hop Type**: **Virtual Network Gateway** (this routes traffic to the Zscaler Connector through the vHub)
+
+2. **Add Exceptions for Azure Service IP Ranges**:
+   - To prevent Azure service traffic (e.g., Azure Bastion) from going through Zscaler, add specific routes for **Azure IP ranges** identified in Step 1.
+
+   **Steps to Add Routes for Azure IP Ranges**:
+   - In the **MgmtToZscaler** route table, go to **Routes** and click **+ Add**.
+   - For each IP range identified for **AzureCloud** and **AzureBastion** in North Europe, add a route:
+     - **Route Name**: `AzureServicesNorthEurope`
+     - **Destination**: `<Azure Service IP Range>` (e.g., `40.113.64.0/18`)
+     - **Next Hop Type**: **Internet** (this ensures Azure service traffic bypasses Zscaler)
+
+   Repeat for each IP range associated with **AzureCloud** and **AzureBastion** in North Europe.
+
+---
+
+### Step 4: Associate Route Tables with the Management VNET Connection in vHub
+
+1. **Go to Connections in vHub**:
+   - In your **vHub**, go to the **Connections** tab.
+
+2. **Associate Route Table with Management VNET**:
+   - Find the connection for your **management VNET** and click **Edit**.
+   - In the **Route Table Association** section, select **MgmtToZscaler** to route only management VNET internet-bound traffic through Zscaler.
+   - In the **Route Table Propagation** section, select **ZscalerToMgmt** to ensure return traffic from Zscaler reaches the management VNET.
+
+3. **Leave Other VNETs Unaffected**:
+   - Do not associate or propagate `MgmtToZscaler` or `ZscalerToMgmt` with other VNETs (identity, shared, backup) to prevent their traffic from routing through Zscaler.
+
+4. **Configure Zscaler Connector Connection**:
+   - For the **Zscaler Cloud Connector** connection in the vHub:
+     - **Associate** it with `ZscalerToMgmt`.
+     - **Propagate** it to `MgmtToZscaler`.
+
+---
+
+### Step 5: Validate the Configuration with Network Watcher
+
+1. **Enable Network Watcher in North Europe**:
+   - Go to **Network Watcher** in the Azure portal.
+   - Under **Regions**, make sure Network Watcher is enabled for **North Europe**.
+
+2. **Verify Effective Routes in Network Watcher**:
+   - Go to **Network Watcher** > **Effective Routes**.
+   - Select the NIC of a VM in the **management VNET**.
+   - Confirm that:
+     - The route for `0.0.0.0/0` (internet-bound traffic) is directed to Zscaler.
+     - Routes for **Azure service IP ranges** (e.g., `40.113.64.0/18`) point to **Internet** as the next hop, bypassing Zscaler.
+
+3. **Test Connectivity**:
+   - **For Internet Access**: From a VM in the management VNET, test internet connectivity (e.g., ping `8.8.8.8`) to confirm it routes through Zscaler.
+   - **For Bastion Access**: Use Azure Bastion to connect to a VM in the management VNET to ensure Azure service traffic is bypassing Zscaler.
+
+---
+
+### Summary
+
+This configuration ensures:
+- **Internet-bound traffic** from the management VNET routes through Zscaler.
+- **Azure service traffic** (e.g., Azure Bastion) bypasses Zscaler, ensuring connectivity to Azure resources.
+
+This updated guide should align with the latest Azure Virtual WAN and vHub settings. Let me know if you need additional clarification on any step!
